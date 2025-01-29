@@ -1,6 +1,5 @@
-
-
 import dummyBooks from "../dummybooks.json";
+// import { sampleBooks } from "@/constants";
 import ImageKit from "imagekit";
 import { books } from "@/database/schema";
 import { neon } from "@neondatabase/serverless";
@@ -18,11 +17,24 @@ const imagekit = new ImageKit({
   privateKey: process.env.IMAGEKIT_PRIVATE_KEY!,
 });
 
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const uploadToImageKit = async (
   url: string,
   fileName: string,
   folder: string,
-) => {
+): Promise<string> => {
+  if (!isValidUrl(url)) {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+
   try {
     const response = await imagekit.upload({
       file: url,
@@ -30,40 +42,67 @@ const uploadToImageKit = async (
       folder,
     });
 
+    if (!response?.filePath) {
+      throw new Error('Upload successful but no filePath returned');
+    }
+
     return response.filePath;
   } catch (error) {
-    console.error("Error uploading image to ImageKit:", error);
+    console.error(`Error uploading ${fileName} to ImageKit:`, error);
+    throw error;
   }
 };
 
 const seed = async () => {
-  console.log("Seeding data...");
+  console.log("Starting data seed process...");
+  
+  for (const book of dummyBooks) {
+    try {
+      console.log(`Processing book: ${book.title}`);
 
-  try {
-    for (const book of dummyBooks) {
-      const coverUrl = (await uploadToImageKit(
-        book.coverUrl,
-        `${book.title}.jpg`,
-        "/books/covers",
-      )) as string;
+      // Check if URLs are valid before attempting upload
+      if (!isValidUrl(book.coverUrl)) {
+        console.error(`Invalid cover URL for book "${book.title}": ${book.coverUrl}`);
+        continue;
+      }
+      if (!isValidUrl(book.videoUrl)) {
+        console.error(`Invalid video URL for book "${book.title}": ${book.videoUrl}`);
+        continue;
+      }
 
-      const videoUrl = (await uploadToImageKit(
-        book.videoUrl,
-        `${book.title}.mp4`,
-        "/books/videos",
-      )) as string;
+      // Upload files
+      // const [coverUrl, videoUrl] = await Promise.all([
+      //   uploadToImageKit(
+      //     book.coverUrl,
+      //     `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`,
+      //     "/books/covers"
+      //   ),
+      //   uploadToImageKit(
+      //     book.videoUrl,
+      //     `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`,
+      //     "/books/videos"
+      //   )
+      // ]);
 
+      // Insert into database
       await db.insert(books).values({
         ...book,
-        coverUrl,
-        videoUrl,
+        // book.coverUrl,
+        // videoUrl,
       });
-    }
 
-    console.log("Data seeded successfully!");
-  } catch (error) {
-    console.error("Error seeding data:", error);
+      console.log(`Successfully processed book: ${book.title}`);
+    } catch (error) {
+      console.error(`Failed to process book "${book.title}":`, error);
+      // Continue with next book instead of stopping the entire process
+      continue;
+    }
   }
+  
+  console.log("Seed process completed!");
 };
 
-seed();
+seed().catch((error) => {
+  console.error("Fatal error during seed process:", error);
+  process.exit(1);
+});
