@@ -29,7 +29,7 @@ const isValidUrl = (url: string): boolean => {
 const uploadToImageKit = async (
   url: string,
   fileName: string,
-  folder: string,
+  folder: string
 ): Promise<string> => {
   if (!isValidUrl(url)) {
     throw new Error(`Invalid URL: ${url}`);
@@ -43,7 +43,7 @@ const uploadToImageKit = async (
     });
 
     if (!response?.filePath) {
-      throw new Error('Upload successful but no filePath returned');
+      throw new Error("Upload successful but no filePath returned");
     }
 
     return response.filePath;
@@ -55,18 +55,22 @@ const uploadToImageKit = async (
 
 const seed = async () => {
   console.log("Starting data seed process...");
-  
+
   for (const book of dummyBooks) {
     try {
       console.log(`Processing book: ${book.title}`);
 
       // Check if URLs are valid before attempting upload
       if (!isValidUrl(book.coverUrl)) {
-        console.error(`Invalid cover URL for book "${book.title}": ${book.coverUrl}`);
+        console.error(
+          `Invalid cover URL for book "${book.title}": ${book.coverUrl}`
+        );
         continue;
       }
       if (!isValidUrl(book.videoUrl)) {
-        console.error(`Invalid video URL for book "${book.title}": ${book.videoUrl}`);
+        console.error(
+          `Invalid video URL for book "${book.title}": ${book.videoUrl}`
+        );
         continue;
       }
 
@@ -98,7 +102,7 @@ const seed = async () => {
       continue;
     }
   }
-  
+
   console.log("Seed process completed!");
 };
 
